@@ -1,0 +1,230 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 54px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg);
+  z-index: 20;
+}
+
+.logo {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  background: linear-gradient(135deg, #4f7cff, #7c5cff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  width: 120px;
+}
+
+.headerCenter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.recDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: pulse 1.5s infinite;
+}
+
+.timer {
+  font-size: 13px;
+  color: var(--text2);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  min-width: 44px;
+}
+
+.roomCode {
+  font-size: 12px;
+  color: var(--text2);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.copyBtn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.copyBtn:hover { color: var(--text2); }
+
+.headerRight {
+  width: 120px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.connStatus {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.videoArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 14px 12px;
+  gap: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.shareBar {
+  background: rgba(79, 124, 255, 0.1);
+  border: 1px solid rgba(79, 124, 255, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.stopShareBtn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  text-decoration: underline;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.reactions {
+  position: absolute;
+  bottom: 90px;
+  left: 20px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.reaction {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 16px;
+  animation: fadeIn 0.3s ease, slideIn 0.3s ease;
+}
+
+.reactionFrom {
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.sidebar {
+  width: 300px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: var(--bg);
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tabBtn {
+  flex: 1;
+  padding: 10px 4px;
+  font-size: 11px;
+  font-weight: 500;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text3);
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  position: relative;
+}
+
+.tabBtn:hover { color: var(--text2); }
+
+.activeTab {
+  color: var(--accent) !important;
+  border-bottom-color: var(--accent) !important;
+}
+
+.badge {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  background: var(--red);
+  color: white;
+  border-radius: 10px;
+  font-size: 9px;
+  padding: 1px 5px;
+  min-width: 14px;
+  text-align: center;
+}
+
+.countBadge {
+  font-size: 9px;
+  background: var(--bg4);
+  border-radius: 8px;
+  padding: 1px 5px;
+  color: var(--text3);
+  position: absolute;
+  top: 6px;
+  right: 8px;
+}
+
+.tabContent {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.copyBtnSuccess {
+  color: var(--green) !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+  background: rgba(34, 197, 94, 0.08) !important;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+}
