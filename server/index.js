@@ -15,22 +15,42 @@ const { setupSocketHandlers } = require('./controllers/socketController');
 const app = express();
 const server = http.createServer(app);
 
-const io = new Server(server, {
-  cors: {
-    origin: [
-      process.env.CLIENT_URL || 'http://localhost:5173',
-      /^http:\/\/192\.168\./,   // allow any 192.168.x.x (local network)
-      /^http:\/\/10\./,          // allow 10.x.x.x
-      /^http:\/\/172\./,         // allow 172.x.x.x
-    ],
-    methods: ['GET', 'POST'],
-    credentials: true,
+// Build allowed origins list
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:4173',
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    // Allow any vercel.app or railway.app subdomain
+    if (origin.endsWith('.vercel.app') || origin.endsWith('.railway.app')) {
+      return callback(null, true);
+    }
+    // Allow explicitly listed origins
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow local network
+    if (/^http:\/\/(localhost|192\.168\.|10\.|172\.)/.test(origin)) {
+      return callback(null, true);
+    }
+    callback(null, true); // permissive for now — tighten after testing
   },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+};
+
+const io = new Server(server, {
+  cors: corsOptions,
 });
 
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // handle preflight for ALL routes
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -41,7 +61,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/debug', debugRoutes);
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.get('/api/health', (req, res) => res.json({
+  status: 'ok',
+  timestamp: new Date().toISOString(),
+  allowedOrigins,
+}));
 
 // Socket.IO
 setupSocketHandlers(io);
@@ -50,7 +74,8 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`\n🚀 NexMeet server running on port ${PORT}`);
   console.log(`📡 Socket.IO ready for WebRTC signaling`);
-  console.log(`🤖 Gemini AI:    ${process.env.GEMINI_API_KEY ? '✓ Connected' : '✗ No API key (get one free at aistudio.google.com)'}\n`);
+  console.log(`🌍 Allowed origins: ${allowedOrigins.join(', ')}`);
+  console.log(`🤖 Gemini AI: ${process.env.GEMINI_API_KEY ? '✓ Connected' : '✗ No API key'}\n`);
 });
 
 module.exports = { app, server, io };
