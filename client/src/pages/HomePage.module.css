@@ -496,3 +496,13 @@
   width: 100%;
   justify-content: center;
 }
+
+.eyeToggle {
+  background: none;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0 4px;
+  flex-shrink: 0;
+  line-height: 1;
+}

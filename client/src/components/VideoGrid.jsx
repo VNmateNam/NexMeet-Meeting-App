@@ -41,7 +41,7 @@ function VideoTile({ participant, index }) {
       <div className={styles.label}>
         {participant.muted && <span className={styles.muteIcon}>🔇</span>}
         <span>{participant.isLocal ? 'You' : participant.name}</span>
-        {participant.isLocal && <span className={styles.hostTag}>Host</span>}
+        {participant.isHost && <span className={styles.hostTag}>Host</span>}
       </div>
 
       {participant.screenSharing && (

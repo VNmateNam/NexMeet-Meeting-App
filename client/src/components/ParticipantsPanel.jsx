@@ -24,7 +24,7 @@ export default function ParticipantsPanel({ participants }) {
           </div>
           <div className={styles.info}>
             <div className={styles.name}>{p.isLocal ? `${p.name} (You)` : p.name}</div>
-            <div className={styles.role}>{p.isLocal ? 'Host' : 'Participant'}</div>
+            <div className={styles.role}>{p.isHost ? '👑 Host' : 'Participant'}</div>
           </div>
           <div className={styles.icons}>
             <span className={p.muted ? styles.off : styles.on} title={p.muted ? 'Muted' : 'Unmuted'}>

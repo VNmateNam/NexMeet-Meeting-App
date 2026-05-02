@@ -1,0 +1,154 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.toolGroup {
+  display: flex;
+  gap: 3px;
+}
+
+.toolBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+}
+.toolBtn:hover { border-color: var(--accent); }
+.activeTool {
+  background: rgba(79,124,255,0.2) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border2);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.colorPalette {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.colorBtn {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s;
+  flex-shrink: 0;
+}
+.colorBtn:hover { transform: scale(1.2); }
+.activeColor {
+  transform: scale(1.25) !important;
+  box-shadow: 0 0 0 2px white;
+}
+
+.brushGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.brushBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+}
+.brushBtn:hover { border-color: var(--accent); }
+.activeBrush {
+  border-color: var(--accent) !important;
+  background: rgba(79,124,255,0.15) !important;
+}
+
+.spacer { flex: 1; }
+
+.actionBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+}
+.actionBtn:hover { border-color: var(--red); }
+
+.canvasWrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #0a0c10;
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.textBox {
+  position: absolute;
+  z-index: 10;
+}
+
+.textInput {
+  background: var(--bg3);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  min-width: 160px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+.hint {
+  padding: 5px 10px;
+  font-size: 10px;
+  color: var(--text3);
+  text-align: center;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}

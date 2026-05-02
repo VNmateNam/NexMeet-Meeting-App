@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useUserStore } from '../store/userStore';
 import { useMedia } from '../hooks/useMedia';
 import { useSocket } from '../hooks/useSocket';
-import { useCopy } from '../hooks/useCopy';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { useTranscription } from '../hooks/useTranscription';
+import { useCopy } from '../hooks/useCopy';
 import { api } from '../utils/api';
 import VideoGrid from '../components/VideoGrid';
 import Controls from '../components/Controls';
@@ -13,104 +13,123 @@ import ChatPanel from '../components/ChatPanel';
 import TranscriptPanel from '../components/TranscriptPanel';
 import NotesPanel from '../components/NotesPanel';
 import ParticipantsPanel from '../components/ParticipantsPanel';
+import CollabCanvas from '../components/CollabCanvas';
 import EndScreen from '../components/EndScreen';
 import styles from './MeetingPage.module.css';
 
 const TABS = [
-  { id: 'chat', label: 'Chat', icon: '💬' },
-  { id: 'transcript', label: 'Live', icon: '🎙️' },
-  { id: 'notes', label: 'Notes', icon: '✨' },
-  { id: 'people', label: 'People', icon: '👥' },
+  { id: 'chat',       label: 'Chat',      icon: '💬' },
+  { id: 'transcript', label: 'Live',       icon: '🎙️' },
+  { id: 'notes',      label: 'Notes',      icon: '✨' },
+  { id: 'canvas',     label: 'Whiteboard', icon: '🎨' },
+  { id: 'people',     label: 'People',     icon: '👥' },
 ];
 
 export default function MeetingPage() {
-  const { roomId } = useParams();
-  const navigate = useNavigate();
+  const { roomId }  = useParams();
+  const navigate    = useNavigate();
+  const location    = useLocation();
   const { user, addToHistory, updateHistoryItem } = useUserStore();
 
-  const { copied: linkCopied, copy: copyLink } = useCopy();
-  const [tab, setTab] = useState('chat');
+  // Password passed from join flow
+  const roomPassword = location.state?.password || '';
+  // Meeting title passed from create flow
+  const meetingTitle = location.state?.title || '';
+
+  const [tab, setTab]               = useState('chat');
   const [participants, setParticipants] = useState([]);
-  const [chat, setChat] = useState([]);
-  const [unread, setUnread] = useState(0);
-  const [reactions, setReactions] = useState([]);
-  const [ended, setEnded] = useState(false);
+  const [mySocketId, setMySocketId] = useState('');
+  const [hostSocketId, setHostSocketId] = useState('');
+  const [chat, setChat]             = useState([]);
+  const [unread, setUnread]         = useState(0);
+  const [reactions, setReactions]   = useState([]);
+  const [ended, setEnded]           = useState(false);
+  const [endedByHost, setEndedByHost] = useState(false);
   const [meetingStats, setMeetingStats] = useState(null);
-  const [summary, setSummary] = useState(null);
-  const [seconds, setSeconds] = useState(0);
-  const [meetingId, setMeetingId] = useState(null);
-  const timerRef = useRef(null);
-  const meetingRef = useRef({ id: null, transcript: [] });
+  const [summary, setSummary]       = useState(null);
+  const [seconds, setSeconds]       = useState(0);
+  const [meetingId, setMeetingId]   = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [canvasRef, setCanvasRef]   = useState(null); // ref from CollabCanvas
+  const [initialCanvas, setInitialCanvas] = useState([]);
 
-  // Media
-  const {
-    localStream, cameraStream, muted, videoOff, screenSharing,
-    startMedia, toggleMute, toggleVideo, startScreenShare, stopScreenShare, stopMedia,
-  } = useMedia();
+  const timerRef  = useRef(null);
+  const meetingRef = useRef({ id: null, transcript: [], title: meetingTitle });
 
-  // Socket
+  const { copied: linkCopied, copy: copyLink } = useCopy();
+
+  // ── Media ────────────────────────────────────────────────────────────────
+  const { localStream, cameraStream, muted, videoOff, screenSharing,
+    startMedia, toggleMute, toggleVideo, startScreenShare, stopScreenShare, stopMedia } = useMedia();
+
+  // ── Socket ───────────────────────────────────────────────────────────────
   const { socket, connected } = useSocket();
 
-  // WebRTC
+  // ── WebRTC ───────────────────────────────────────────────────────────────
   const { remoteStreams } = useWebRTC({ socket, roomId, localStream });
 
-  // Transcription
-  const { transcript, isListening, supported: transcriptSupported, start: startTranscription, stop: stopTranscription, addLine } = useTranscription({
+  // ── Transcription ────────────────────────────────────────────────────────
+  const { transcript, isListening, supported: transcriptSupported, start: startTranscription,
+    stop: stopTranscription, addLine } = useTranscription({
     onLine: useCallback((line) => {
       meetingRef.current.transcript.push(line);
       socket?.emit('transcript-line', { roomId, text: line.text });
     }, [socket, roomId]),
   });
 
-  // ── Init ──────────────────────────────────────────────────────────────────
+  const isHost = mySocketId && hostSocketId && mySocketId === hostSocketId;
+
+  // ── Init ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) { navigate('/'); return; }
-
     (async () => {
       await startMedia();
-
-      // Create meeting record
       try {
-        const { meeting } = await api.createMeeting({ hostName: user.name, title: 'Meeting' });
+        const { meeting } = await api.createMeeting({ hostName: user.name, title: meetingRef.current.title || 'Meeting', password: roomPassword });
         setMeetingId(meeting.id);
         meetingRef.current.id = meeting.id;
-        addToHistory({ id: meeting.id, roomCode: roomId, title: 'Meeting', date: new Date().toLocaleDateString(), participants: 1 });
+        addToHistory({ id: meeting.id, roomCode: roomId, title: meeting.title || 'Meeting', date: new Date().toLocaleDateString(), participants: 1 });
       } catch {
-        // Offline mode — generate local ID
         const localId = `local-${Date.now()}`;
         setMeetingId(localId);
         meetingRef.current.id = localId;
       }
-
-      // Start timer
       timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
     })();
-
-    return () => {
-      clearInterval(timerRef.current);
-      stopMedia();
-      stopTranscription();
-    };
+    return () => { clearInterval(timerRef.current); stopMedia(); stopTranscription(); };
   }, []);
 
-  // ── Socket: join room ─────────────────────────────────────────────────────
+  // ── Socket events ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!socket || !connected || !user) return;
 
     socket.emit('join-room', { roomId, userId: user.userId, name: user.name });
 
-    socket.on('room-joined', ({ participants: existing }) => {
+    socket.on('room-joined', ({ participants: existing, you, hostSocketId: hid, canvas }) => {
       setParticipants(existing);
+      setMySocketId(you.socketId);
+      setHostSocketId(hid);
+      setInitialCanvas(canvas || []);
     });
 
     socket.on('participant-joined', (p) => {
       setParticipants(prev => [...prev.filter(x => x.socketId !== p.socketId), p]);
     });
 
-    socket.on('participant-left', ({ socketId, name }) => {
+    socket.on('participant-left', ({ socketId, name, time }) => {
       setParticipants(prev => prev.filter(p => p.socketId !== socketId));
-      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      addChatMessage({ type: 'system', text: `${name} left the meeting`, time });
+      addMsg({ type: 'system', text: `${name} left the meeting`, time });
+    });
+
+    socket.on('host-changed', ({ newHostSocketId, newHostName }) => {
+      setHostSocketId(newHostSocketId);
+      addMsg({ type: 'system', text: `${newHostName} is now the host` });
+    });
+
+    // Host ended meeting for everyone
+    socket.on('meeting-ended-by-host', ({ hostName }) => {
+      setEndedByHost(true);
+      finishMeeting(false); // not the host, don't re-emit
     });
 
     socket.on('chat-message', (msg) => {
@@ -119,7 +138,6 @@ export default function MeetingPage() {
     });
 
     socket.on('transcript-line', (line) => {
-      // Remote participant's transcription
       if (line.speaker !== user.name) {
         addLine(line.speaker, line.text);
         meetingRef.current.transcript.push(line);
@@ -134,29 +152,20 @@ export default function MeetingPage() {
 
     return () => {
       socket.emit('leave-room', { roomId });
-      socket.off('room-joined');
-      socket.off('participant-joined');
-      socket.off('participant-left');
-      socket.off('chat-message');
-      socket.off('transcript-line');
-      socket.off('reaction');
+      ['room-joined','participant-joined','participant-left','host-changed',
+       'meeting-ended-by-host','chat-message','transcript-line','reaction']
+        .forEach(e => socket.off(e));
     };
   }, [socket, connected, user, roomId]);
 
-  // ── Sync media state to peers ─────────────────────────────────────────────
   useEffect(() => {
     socket?.emit('media-state', { roomId, muted, videoOff, screenSharing });
   }, [muted, videoOff, screenSharing, socket, roomId]);
 
-  const addChatMessage = (msg) => setChat(prev => [...prev, { id: Date.now(), ...msg }]);
+  const addMsg = (msg) => setChat(prev => [...prev, { id: Date.now(), ...msg }]);
 
-  const sendMessage = (text) => {
-    socket?.emit('chat-message', { roomId, message: text });
-  };
-
-  const sendReaction = (emoji) => {
-    socket?.emit('reaction', { roomId, emoji });
-  };
+  const sendMessage = (text) => socket?.emit('chat-message', { roomId, message: text });
+  const sendReaction = (emoji) => socket?.emit('reaction', { roomId, emoji });
 
   const handleToggleMute = () => {
     toggleMute();
@@ -164,18 +173,14 @@ export default function MeetingPage() {
     else if (muted && !isListening && transcriptSupported) startTranscription(user.name);
   };
 
-  const handleToggleVideo = () => toggleVideo();
-
-  const handleScreenShare = async () => {
-    if (screenSharing) stopScreenShare();
-    else await startScreenShare();
-  };
-
-  const handleEndMeeting = async () => {
+  const finishMeeting = async (emitEnd = true) => {
     clearInterval(timerRef.current);
     stopTranscription();
     stopMedia();
-    socket?.emit('leave-room', { roomId });
+
+    if (emitEnd && isHost) {
+      socket?.emit('host-end-meeting', { roomId });
+    }
 
     const stats = {
       duration: fmt(seconds),
@@ -185,79 +190,76 @@ export default function MeetingPage() {
     };
     setMeetingStats(stats);
 
-    // Save transcript
     if (meetingRef.current.transcript.length > 0) {
       api.saveTranscript(meetingId, meetingRef.current.transcript).catch(() => {});
     }
 
-    // Generate AI summary
     if (meetingRef.current.transcript.length >= 3) {
       try {
         const { summary: s } = await api.summarize(meetingRef.current.transcript);
         setSummary(s);
         api.saveSummary(meetingId, s).catch(() => {});
         updateHistoryItem(meetingId, { summary: s, duration: fmt(seconds), participants: stats.participantCount });
-      } catch {
-        setSummary(null);
-      }
+      } catch { setSummary(null); }
     }
 
     setEnded(true);
   };
 
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
 
-  const switchTab = (t) => {
-    setTab(t);
-    if (t === 'chat') setUnread(0);
-  };
+  const switchTab = (t) => { setTab(t); if (t === 'chat') setUnread(0); };
 
-  // Build participant list for grid
   const allParticipants = [
-    { socketId: 'local', name: user?.name || 'You', color: '#4f7cff', stream: cameraStream, isLocal: true, muted, videoOff },
+    { socketId: mySocketId || 'local', name: user?.name || 'You', color: '#4f7cff',
+      stream: cameraStream, isLocal: true, isHost, muted, videoOff },
     ...participants.map(p => ({
-      ...p,
-      stream: remoteStreams[p.socketId] || null,
-      isLocal: false,
+      ...p, stream: remoteStreams[p.socketId] || null, isLocal: false,
+      isHost: p.socketId === hostSocketId,
     })),
   ];
 
   if (ended) {
-    return (
-      <EndScreen
-        stats={meetingStats}
-        summary={summary}
-        transcript={meetingRef.current.transcript}
-        onNewMeeting={() => navigate('/')}
-        onHome={() => navigate('/history')}
-      />
-    );
+    return <EndScreen stats={meetingStats} summary={summary} transcript={meetingRef.current.transcript}
+      endedByHost={endedByHost} onNewMeeting={() => navigate('/')} onHome={() => navigate('/history')} />;
   }
 
   return (
     <div className={styles.page}>
-      {/* Header */}
       <header className={styles.header}>
         <div className={styles.logo}>NexMeet</div>
         <div className={styles.headerCenter}>
           <div className={styles.recDot} />
           <span className={styles.timer}>{fmt(seconds)}</span>
+          {meetingTitle && <span className={styles.meetingTitle}>{meetingTitle}</span>}
           <span className={styles.roomCode}>{roomId}</span>
-          <button
-            className={`${styles.copyBtn} ${linkCopied ? styles.copyBtnSuccess : ''}`}
-            onClick={() => copyLink(window.location.href)}
-            title="Copy meeting link"
-          >{linkCopied ? '✓' : '📋'}</button>
+          <button className={`${styles.copyBtn} ${linkCopied ? styles.copyBtnSuccess : ''}`}
+            onClick={() => copyLink(window.location.href)} title="Copy meeting link">
+            {linkCopied ? '✓' : '📋'}
+          </button>
+          {/* Host-only: show password */}
+          {isHost && roomPassword && (
+            <div className={styles.passwordBadge}>
+              <span className={styles.lockIcon}>🔒</span>
+              <span className={styles.passwordVal}>
+                {showPassword ? roomPassword : '••••••'}
+              </span>
+              <button className={styles.eyeBtn} onClick={() => setShowPassword(p => !p)}
+                title={showPassword ? 'Hide password' : 'Show password'}>
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+          )}
         </div>
         <div className={styles.headerRight}>
           <span className={styles.connStatus} style={{ color: connected ? 'var(--green)' : 'var(--amber)' }}>
             {connected ? '● Connected' : '○ Reconnecting…'}
           </span>
+          {isHost && <span className={styles.hostBadge}>Host</span>}
         </div>
       </header>
 
       <div className={styles.body}>
-        {/* Video area */}
         <div className={styles.videoArea}>
           {screenSharing && (
             <div className={styles.shareBar}>
@@ -268,7 +270,6 @@ export default function MeetingPage() {
 
           <VideoGrid participants={allParticipants} />
 
-          {/* Floating reactions */}
           <div className={styles.reactions}>
             {reactions.map(r => (
               <div key={r.id} className={styles.reaction}>
@@ -278,27 +279,17 @@ export default function MeetingPage() {
             ))}
           </div>
 
-          <Controls
-            muted={muted}
-            videoOff={videoOff}
-            screenSharing={screenSharing}
-            onToggleMute={handleToggleMute}
-            onToggleVideo={handleToggleVideo}
-            onScreenShare={handleScreenShare}
-            onReaction={sendReaction}
-            onEndMeeting={handleEndMeeting}
-          />
+          <Controls muted={muted} videoOff={videoOff} screenSharing={screenSharing}
+            onToggleMute={handleToggleMute} onToggleVideo={toggleVideo}
+            onScreenShare={async () => { if (screenSharing) stopScreenShare(); else await startScreenShare(); }}
+            onReaction={sendReaction} onEndMeeting={() => finishMeeting(true)} isHost={isHost} />
         </div>
 
-        {/* Sidebar */}
         <aside className={styles.sidebar}>
           <div className={styles.tabs}>
             {TABS.map(t => (
-              <button
-                key={t.id}
-                className={`${styles.tabBtn} ${tab === t.id ? styles.activeTab : ''}`}
-                onClick={() => switchTab(t.id)}
-              >
+              <button key={t.id} className={`${styles.tabBtn} ${tab === t.id ? styles.activeTab : ''}`}
+                onClick={() => switchTab(t.id)}>
                 <span>{t.icon}</span>
                 <span>{t.label}</span>
                 {t.id === 'chat' && unread > 0 && <span className={styles.badge}>{unread}</span>}
@@ -308,25 +299,14 @@ export default function MeetingPage() {
           </div>
 
           <div className={styles.tabContent}>
-            {tab === 'chat' && <ChatPanel messages={chat} onSend={sendMessage} />}
-            {tab === 'transcript' && (
-              <TranscriptPanel
-                transcript={transcript}
-                isLive={isListening}
-                supported={transcriptSupported}
-                onStart={() => startTranscription(user.name)}
-                onStop={stopTranscription}
-              />
-            )}
-            {tab === 'notes' && (
-              <NotesPanel
-                transcript={meetingRef.current.transcript.length > 0 ? meetingRef.current.transcript : transcript}
-                onSummaryGenerated={setSummary}
-              />
-            )}
-            {tab === 'people' && (
-              <ParticipantsPanel participants={allParticipants} />
-            )}
+            {tab === 'chat'       && <ChatPanel messages={chat} onSend={sendMessage} />}
+            {tab === 'transcript' && <TranscriptPanel transcript={transcript} isLive={isListening}
+                supported={transcriptSupported} onStart={() => startTranscription(user.name)} onStop={stopTranscription} />}
+            {tab === 'notes'      && <NotesPanel transcript={meetingRef.current.transcript.length > 0
+                ? meetingRef.current.transcript : transcript} onSummaryGenerated={setSummary} />}
+            {tab === 'canvas'     && <CollabCanvas socket={socket} roomId={roomId}
+                initialStrokes={initialCanvas} myName={user?.name} myColor="#4f7cff" />}
+            {tab === 'people'     && <ParticipantsPanel participants={allParticipants} />}
           </div>
         </aside>
       </div>

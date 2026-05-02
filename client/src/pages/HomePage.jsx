@@ -16,6 +16,7 @@ export default function HomePage() {
   const [joinCode, setJoinCode] = useState('');
   const [joinPassword, setJoinPassword] = useState('');
   const [meetingTitle, setMeetingTitle] = useState('');
+  const [showRoomPass, setShowRoomPass] = useState(false);
   const [roomPassword, setRoomPassword] = useState('');
 
   const [loading, setLoading] = useState(false);
@@ -67,7 +68,7 @@ export default function HomePage() {
         title: meetingTitle.trim() || 'My Meeting',
         password: roomPassword.trim() || null,
       });
-      navigate(`/meeting/${meeting.roomCode}`);
+      navigate(`/meeting/${meeting.roomCode}`, { state: { title: meetingTitle.trim(), password: roomPassword.trim() } });
     } catch {
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
       navigate(`/meeting/${code}`);
@@ -239,9 +240,14 @@ export default function HomePage() {
                   value={roomPassword}
                   onChange={e => setRoomPassword(e.target.value)}
                   placeholder="Room password (optional)"
-                  type="password"
+                  type={showRoomPass ? 'text' : 'password'}
                   maxLength={30}
                 />
+                {roomPassword && (
+                  <button type="button" className={styles.eyeToggle} onClick={() => setShowRoomPass(p => !p)}>
+                    {showRoomPass ? '🙈' : '👁️'}
+                  </button>
+                )}
               </div>
               {roomPassword && (
                 <p className={styles.passwordHint}>

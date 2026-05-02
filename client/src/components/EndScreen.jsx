@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styles from './EndScreen.module.css';
 
-export default function EndScreen({ stats, summary, transcript, onNewMeeting, onHome }) {
+export default function EndScreen({ stats, summary, transcript, endedByHost, onNewMeeting, onHome }) {
   const [savedTranscript, setSavedTranscript] = useState(false);
   const [savedNotes, setSavedNotes] = useState(false);
 
@@ -46,7 +46,7 @@ export default function EndScreen({ stats, summary, transcript, onNewMeeting, on
       <div className={styles.card}>
         <div className={styles.wave}>👋</div>
         <h1 className={styles.title}>Meeting Ended</h1>
-        <p className={styles.sub}>Your transcript and AI notes have been saved.</p>
+        <p className={styles.sub}>{endedByHost ? 'The host ended this meeting for everyone.' : 'Your transcript and AI notes have been saved.'}</p>
 
         {stats && (
           <div className={styles.statsGrid}>
