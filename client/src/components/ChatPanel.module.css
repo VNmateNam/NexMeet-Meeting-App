@@ -35,6 +35,10 @@
   color: var(--text3);
   padding: 4px 0;
 }
+.systemTime {
+  color: var(--text3);
+  opacity: 0.7;
+}
 
 .msg {
   display: flex;

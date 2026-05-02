@@ -28,6 +28,8 @@ export const api = {
 
   // Meetings
   createMeeting: (data) => request('/meetings/create', { method: 'POST', body: data }),
+  checkRoom: (code) => request(`/meetings/check/${code}`),
+  joinRoom: (roomCode, password) => request('/meetings/join', { method: 'POST', body: { roomCode, password } }),
   getMeeting: (id) => request(`/meetings/${id}`),
   endMeeting: (id, duration) => request(`/meetings/${id}/end`, { method: 'POST', body: { duration } }),
   saveTranscript: (id, lines) => request(`/meetings/${id}/transcript`, { method: 'POST', body: { lines } }),

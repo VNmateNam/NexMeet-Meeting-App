@@ -5,6 +5,8 @@ export function useTranscription({ onLine, enabled = true }) {
   const [transcript, setTranscript] = useState([]);
   const recognitionRef = useRef(null);
   const restartTimerRef = useRef(null);
+  const lastTextRef = useRef('');       // tracks last finalised text to dedupe
+  const lastTimeRef = useRef(0);        // tracks when last line was added
 
   const SpeechRecognition =
     typeof window !== 'undefined'
@@ -14,7 +16,19 @@ export function useTranscription({ onLine, enabled = true }) {
   const supported = Boolean(SpeechRecognition);
 
   const addLine = useCallback((speaker, text) => {
-    const line = { speaker, text, timestamp: Date.now() };
+    const now = Date.now();
+    const normalised = text.trim().toLowerCase().replace(/[^a-z0-9 ]/g, '');
+
+    // Dedupe: skip if identical to last line added within 4 seconds
+    if (
+      normalised === lastTextRef.current &&
+      now - lastTimeRef.current < 4000
+    ) return;
+
+    lastTextRef.current = normalised;
+    lastTimeRef.current = now;
+
+    const line = { speaker, text: text.trim(), timestamp: now };
     setTranscript(prev => [...prev, line]);
     onLine?.(line);
   }, [onLine]);
@@ -44,14 +58,14 @@ export function useTranscription({ onLine, enabled = true }) {
         console.error('[Transcription] Microphone permission denied');
         setIsListening(false);
       }
+      // aborted / no-speech — will auto restart via onend
     };
 
     recognition.onend = () => {
-      // Auto-restart if still supposed to be listening
       if (recognitionRef.current === recognition) {
         restartTimerRef.current = setTimeout(() => {
           try { recognition.start(); } catch {}
-        }, 300);
+        }, 500);
       }
     };
 

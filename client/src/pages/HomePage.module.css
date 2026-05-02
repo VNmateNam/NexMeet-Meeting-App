@@ -334,3 +334,165 @@
   padding: 3px 8px;
   display: inline-block;
 }
+
+/* ── Name edit in nav ── */
+.nameEdit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nameEditInput {
+  background: var(--bg3);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  width: 140px;
+}
+.saveNameBtn {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  border: none;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cancelNameBtn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+}
+.userBadge {
+  font-size: 13px;
+  color: var(--text2);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 4px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.userBadge:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Create form ── */
+.createForm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  animation: fadeIn 0.2s ease;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+}
+.titleInput {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 11px 16px;
+  color: var(--text);
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+  text-align: center;
+}
+.titleInput:focus { border-color: var(--accent); }
+.titleInput::placeholder { color: var(--text3); }
+
+.passwordRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 0 12px;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+.passwordRow:focus-within { border-color: var(--accent); }
+.lockIcon { font-size: 14px; flex-shrink: 0; }
+.passwordInput {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 11px 0;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+.passwordInput::placeholder { color: var(--text3); }
+.passwordHint {
+  font-size: 11px;
+  color: var(--amber);
+  text-align: center;
+}
+
+/* ── Room info box (when joining password room) ── */
+.roomInfoBox {
+  background: rgba(79, 124, 255, 0.08);
+  border: 1px solid rgba(79, 124, 255, 0.25);
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  text-align: center;
+  width: 100%;
+}
+.roomInfoTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.roomInfoMeta {
+  font-size: 12px;
+  color: var(--text3);
+}
+
+/* ── Room not found ── */
+.notFoundBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  animation: fadeIn 0.25s ease;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  max-width: 380px;
+  margin: 0 auto;
+}
+.notFoundIcon { font-size: 36px; }
+.notFoundTitle {
+  font-size: 17px;
+  font-weight: 600;
+  text-align: center;
+}
+.codeHighlight {
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.notFoundText {
+  font-size: 13px;
+  color: var(--text3);
+  text-align: center;
+}
+.notFoundBtns {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.notFoundBtns .btnPrimary,
+.notFoundBtns .btnSecondary {
+  width: 100%;
+  justify-content: center;
+}

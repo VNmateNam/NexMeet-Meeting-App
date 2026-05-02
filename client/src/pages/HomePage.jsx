@@ -9,47 +9,143 @@ export default function HomePage() {
   const { user, setUser, meetingHistory } = useUserStore();
 
   const [name, setName] = useState(user?.name || '');
+  const [editingName, setEditingName] = useState(false);
+  const [newName, setNewName] = useState(user?.name || '');
+
+  const [mode, setMode] = useState('home'); // home | join | create
   const [joinCode, setJoinCode] = useState('');
-  const [mode, setMode] = useState('home'); // home | join
+  const [joinPassword, setJoinPassword] = useState('');
+  const [meetingTitle, setMeetingTitle] = useState('');
+  const [roomPassword, setRoomPassword] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const ensureUser = async () => {
-    if (user) return user;
-    if (!name.trim()) { setError('Enter your name to continue'); return null; }
+  // Room-not-found state
+  const [unknownCode, setUnknownCode] = useState('');
+  const [showRoomOptions, setShowRoomOptions] = useState(false);
+
+  // Room info when joining a password-protected room
+  const [roomInfo, setRoomInfo] = useState(null);
+
+  const ensureUser = async (nameOverride) => {
+    const n = nameOverride || name;
+    if (user && !nameOverride) return user;
+    if (!n.trim()) { setError('Enter your name to continue'); return null; }
     try {
-      const { user: u, token } = await api.guestLogin(name.trim());
+      const { user: u, token } = await api.guestLogin(n.trim());
       setUser(u, token);
       return u;
-    } catch (e) {
-      setError(e.message);
-      return null;
+    } catch {
+      // Offline fallback
+      const u = { userId: `local-${Date.now()}`, name: n.trim(), role: 'guest' };
+      setUser(u, 'local-token');
+      return u;
     }
   };
 
+  const handleSaveName = async () => {
+    if (!newName.trim() || newName.trim() === user?.name) {
+      setEditingName(false);
+      return;
+    }
+    const u = await ensureUser(newName.trim());
+    if (u) {
+      setName(newName.trim());
+      setEditingName(false);
+    }
+  };
+
+  // ── Create new meeting ────────────────────────────────────────────────
   const handleNewMeeting = async () => {
     setLoading(true); setError('');
     const u = await ensureUser();
     if (!u) { setLoading(false); return; }
     try {
-      const { meeting } = await api.createMeeting({ hostName: u.name, title: 'My Meeting' });
+      const { meeting } = await api.createMeeting({
+        hostName: u.name,
+        title: meetingTitle.trim() || 'My Meeting',
+        password: roomPassword.trim() || null,
+      });
       navigate(`/meeting/${meeting.roomCode}`);
     } catch {
-      // Fallback: generate a local room code
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
       navigate(`/meeting/${code}`);
     }
     setLoading(false);
   };
 
-  const handleJoin = async (e) => {
-    e.preventDefault();
-    if (!joinCode.trim()) { setError('Enter a meeting code'); return; }
+  // ── Join by code ──────────────────────────────────────────────────────
+  const handleCheckCode = async (e) => {
+    e?.preventDefault();
+    const code = joinCode.trim().toUpperCase();
+    if (!code) { setError('Enter a meeting code'); return; }
+
+    setLoading(true); setError('');
+
+    try {
+      const info = await api.checkRoom(code);
+
+      if (!info.exists) {
+        // Room not found — ask user what to do
+        setUnknownCode(code);
+        setShowRoomOptions(true);
+        setLoading(false);
+        return;
+      }
+
+      setRoomInfo(info);
+
+      // If password protected, show password input
+      if (info.hasPassword) {
+        setLoading(false);
+        return; // UI will show password field
+      }
+
+      // No password — join directly
+      await doJoin(code, '');
+    } catch {
+      // Server offline — just navigate
+      const u = await ensureUser();
+      if (u) navigate(`/meeting/${code}`);
+    }
+    setLoading(false);
+  };
+
+  const handleJoinWithPassword = async (e) => {
+    e?.preventDefault();
+    const code = joinCode.trim().toUpperCase();
+    setLoading(true); setError('');
+    try {
+      await api.joinRoom(code, joinPassword);
+      await doJoin(code, joinPassword);
+    } catch (err) {
+      setError(err.message === 'Incorrect password' ? '🔒 Incorrect password' : err.message);
+    }
+    setLoading(false);
+  };
+
+  const doJoin = async (code, password) => {
+    const u = await ensureUser();
+    if (!u) return;
+    navigate(`/meeting/${code}`, { state: { password } });
+  };
+
+  // ── Create room with unknown code ─────────────────────────────────────
+  const handleCreateWithCode = async () => {
     setLoading(true); setError('');
     const u = await ensureUser();
     if (!u) { setLoading(false); return; }
-    navigate(`/meeting/${joinCode.trim().toUpperCase()}`);
+    navigate(`/meeting/${unknownCode}`);
     setLoading(false);
+  };
+
+  const resetJoin = () => {
+    setRoomInfo(null);
+    setShowRoomOptions(false);
+    setUnknownCode('');
+    setJoinPassword('');
+    setError('');
   };
 
   return (
@@ -64,7 +160,26 @@ export default function HomePage() {
         <div className={styles.logo}>NexMeet</div>
         <div className={styles.navLinks}>
           <button onClick={() => navigate('/history')} className={styles.navLink}>History</button>
-          {user && <span className={styles.userBadge}>{user.name}</span>}
+          {user && (
+            editingName ? (
+              <div className={styles.nameEdit}>
+                <input
+                  className={styles.nameEditInput}
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false); }}
+                  autoFocus
+                  maxLength={40}
+                />
+                <button className={styles.saveNameBtn} onClick={handleSaveName}>Save</button>
+                <button className={styles.cancelNameBtn} onClick={() => setEditingName(false)}>✕</button>
+              </div>
+            ) : (
+              <button className={styles.userBadge} onClick={() => { setEditingName(true); setNewName(user.name); }} title="Click to change name">
+                {user.name} ✏️
+              </button>
+            )
+          )}
         </div>
       </nav>
 
@@ -95,11 +210,11 @@ export default function HomePage() {
 
           {error && <p className={styles.error}>{error}</p>}
 
-          {mode === 'home' && (
+          {/* ── Home buttons ── */}
+          {mode === 'home' && !showRoomOptions && (
             <div className={styles.actions}>
-              <button className={styles.btnPrimary} onClick={handleNewMeeting} disabled={loading}>
-                {loading ? <span className="spinner" /> : '🎥'}
-                New Meeting
+              <button className={styles.btnPrimary} onClick={() => setMode('create')}>
+                🎥 New Meeting
               </button>
               <button className={styles.btnSecondary} onClick={() => setMode('join')}>
                 Enter a code
@@ -107,8 +222,44 @@ export default function HomePage() {
             </div>
           )}
 
-          {mode === 'join' && (
-            <form className={styles.joinForm} onSubmit={handleJoin}>
+          {/* ── Create meeting form ── */}
+          {mode === 'create' && (
+            <div className={styles.createForm}>
+              <input
+                className={styles.titleInput}
+                value={meetingTitle}
+                onChange={e => setMeetingTitle(e.target.value)}
+                placeholder="Meeting title (optional)"
+                maxLength={60}
+              />
+              <div className={styles.passwordRow}>
+                <span className={styles.lockIcon}>🔒</span>
+                <input
+                  className={styles.passwordInput}
+                  value={roomPassword}
+                  onChange={e => setRoomPassword(e.target.value)}
+                  placeholder="Room password (optional)"
+                  type="password"
+                  maxLength={30}
+                />
+              </div>
+              {roomPassword && (
+                <p className={styles.passwordHint}>
+                  Participants will need this password to join
+                </p>
+              )}
+              <div className={styles.joinBtns}>
+                <button className={styles.btnPrimary} onClick={handleNewMeeting} disabled={loading}>
+                  {loading ? <span className="spinner" /> : '🎥'} Create Room
+                </button>
+                <button className={styles.btnGhost} onClick={() => { setMode('home'); setRoomPassword(''); setMeetingTitle(''); }}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Join by code ── */}
+          {mode === 'join' && !showRoomOptions && !roomInfo && (
+            <form className={styles.joinForm} onSubmit={handleCheckCode}>
               <input
                 className={styles.codeInput}
                 value={joinCode}
@@ -119,22 +270,64 @@ export default function HomePage() {
               />
               <div className={styles.joinBtns}>
                 <button type="submit" className={styles.btnPrimary} disabled={loading}>
-                  {loading ? <span className="spinner" /> : null} Join
+                  {loading ? <span className="spinner" /> : null} Check Code
                 </button>
-                <button type="button" className={styles.btnGhost} onClick={() => setMode('home')}>Cancel</button>
+                <button type="button" className={styles.btnGhost} onClick={() => { setMode('home'); resetJoin(); }}>Cancel</button>
               </div>
             </form>
+          )}
+
+          {/* ── Password entry for protected room ── */}
+          {mode === 'join' && roomInfo && roomInfo.hasPassword && (
+            <form className={styles.joinForm} onSubmit={handleJoinWithPassword}>
+              <div className={styles.roomInfoBox}>
+                <div className={styles.roomInfoTitle}>{roomInfo.title}</div>
+                <div className={styles.roomInfoMeta}>Hosted by {roomInfo.hostName} · 🔒 Password required</div>
+              </div>
+              <input
+                className={styles.codeInput}
+                value={joinPassword}
+                onChange={e => setJoinPassword(e.target.value)}
+                placeholder="Enter room password"
+                type="password"
+                autoFocus
+              />
+              {error && <p className={styles.error}>{error}</p>}
+              <div className={styles.joinBtns}>
+                <button type="submit" className={styles.btnPrimary} disabled={loading}>
+                  {loading ? <span className="spinner" /> : '🔓'} Join Room
+                </button>
+                <button type="button" className={styles.btnGhost} onClick={() => { resetJoin(); setMode('join'); }}>Back</button>
+              </div>
+            </form>
+          )}
+
+          {/* ── Room not found options ── */}
+          {showRoomOptions && (
+            <div className={styles.notFoundBox}>
+              <div className={styles.notFoundIcon}>🔍</div>
+              <h3 className={styles.notFoundTitle}>Room <span className={styles.codeHighlight}>{unknownCode}</span> not found</h3>
+              <p className={styles.notFoundText}>This room doesn't exist yet. What would you like to do?</p>
+              <div className={styles.notFoundBtns}>
+                <button className={styles.btnPrimary} onClick={handleCreateWithCode} disabled={loading}>
+                  {loading ? <span className="spinner" /> : '🎥'} Create room with this code
+                </button>
+                <button className={styles.btnSecondary} onClick={() => { setShowRoomOptions(false); setJoinCode(''); }}>
+                  Try a different code
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
         <div className={styles.features}>
           {[
             { icon: '🎥', title: 'HD Video', desc: 'WebRTC peer-to-peer video — no servers relay your video.' },
-            { icon: '🎙️', title: 'Live Transcription', desc: 'Voice-to-text via Web Speech API & OpenAI Whisper.' },
-            { icon: '✨', title: 'AI Notes', desc: 'Claude generates summaries, decisions & action items.' },
+            { icon: '🎙️', title: 'Live Transcription', desc: 'Voice-to-text via Web Speech API.' },
+            { icon: '✨', title: 'AI Notes', desc: 'Gemini generates summaries, decisions & action items.' },
             { icon: '💬', title: 'In-Meeting Chat', desc: 'Real-time messaging via Socket.IO.' },
             { icon: '🖥️', title: 'Screen Share', desc: 'Share your entire screen or a single window.' },
-            { icon: '📋', title: 'Meeting History', desc: 'All past meetings, transcripts & notes saved locally.' },
+            { icon: '🔒', title: 'Password Rooms', desc: 'Protect meetings with an optional password.' },
           ].map(f => (
             <div key={f.title} className={styles.featureCard}>
               <span className={styles.featureIcon}>{f.icon}</span>

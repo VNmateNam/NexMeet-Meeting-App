@@ -109,7 +109,8 @@ export default function MeetingPage() {
 
     socket.on('participant-left', ({ socketId, name }) => {
       setParticipants(prev => prev.filter(p => p.socketId !== socketId));
-      addChatMessage({ type: 'system', text: `${name} left the meeting` });
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      addChatMessage({ type: 'system', text: `${name} left the meeting`, time });
     });
 
     socket.on('chat-message', (msg) => {

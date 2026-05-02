@@ -28,7 +28,10 @@ export default function ChatPanel({ messages, onSend }) {
         {messages.map((m, i) => {
           if (m.type === 'system') {
             return (
-              <div key={m.id || i} className={styles.system}>{m.text}</div>
+              <div key={m.id || i} className={styles.system}>
+                {m.text}
+                {m.time && <span className={styles.systemTime}> · {m.time}</span>}
+              </div>
             );
           }
           const isMe = m.socketId === 'local' || m.from === 'You';
